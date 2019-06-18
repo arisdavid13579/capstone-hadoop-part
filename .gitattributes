@@ -1,0 +1,2 @@
+# Ignore Hive scripts and SQL scripts for linguist
+*.sql linguist-detectable=false 
