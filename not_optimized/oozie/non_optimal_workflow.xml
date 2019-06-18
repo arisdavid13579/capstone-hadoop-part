@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<workflow-app xmlns = "uri:oozie:workflow:0.2" name = "Non_Optimal_Workflow">
+	<start to = "Credit_Card_Data_Import"/>
+
+	<!--Credit Card Table-->
+
+	<action name="Credit_Card_Data_Import">
+		<sqoop xmlns="uri:oozie:sqoop-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+				<delete path="${nameNode}/Credit_Card_System/CDW_SAPP_F_CREDIT_CARD"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<arg>import</arg>
+			<arg>--connect</arg>
+			<arg>jdbc:mysql://localhost/cdw_sapp</arg>
+			<arg>--driver</arg>
+			<arg>com.mysql.jdbc.Driver</arg>
+			<arg>-m</arg>
+			<arg>1</arg>
+			<arg>--query</arg>
+			<arg>SELECT
+				CREDIT_CARD_NO AS CUST_CC_NO,
+				CONCAT (YEAR, IF(MONTH BETWEEN 1 AND 9, CONCAT (0, MONTH), MONTH), IF(DAY BETWEEN 1 AND 9, CONCAT (0, DAY), DAY)) AS TIMEID,
+				CUST_SSN,
+				BRANCH_CODE,
+				TRANSACTION_TYPE,
+				TRANSACTION_VALUE,
+				TRANSACTION_ID,
+				LAST_UPDATED
+				FROM
+				cdw_sapp.cdw_sapp_creditcard
+				WHERE $CONDITIONS</arg>
+			<arg>--target-dir</arg>
+			<arg>/Credit_Card_System/CDW_SAPP_F_CREDIT_CARD/</arg>
+			<arg>--fields-terminated-by</arg>
+			<arg>\t</arg>
+			<archive>/user/oozie/share/lib/lib_20161025075203/sqoop/java-json.jar#java-json.jar</archive>
+		</sqoop>
+		<ok to="Credit_Card_Hive"/>
+		<error to = "Kill_Sqoop"/>
+	</action>
+
+	<action name="Credit_Card_Hive">
+		<hive xmlns = "uri:oozie:hive-action:0.4">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<script>${nameNode}/case_study/hive/creditcardtable.sql</script>
+			<param>INSERTION_MODE=OVERWRITE</param>
+		</hive>
+		<ok to = "Branch_Data_Import" />
+		<error to = "Kill_Hive" />
+	</action>	
+
+
+	<!-- Branch Table -->
+
+
+
+	<action name="Branch_Data_Import">
+		<sqoop xmlns="uri:oozie:sqoop-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+				<delete path="${nameNode}/Credit_Card_System/CDW_SAPP_D_BRANCH"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<arg>import</arg>
+			<arg>--connect</arg>
+			<arg>jdbc:mysql://localhost/cdw_sapp</arg>
+			<arg>--driver</arg>
+			<arg>com.mysql.jdbc.Driver</arg>
+			<arg>-m</arg>
+			<arg>1</arg>
+			<arg>--query</arg>
+			<arg>SELECT
+				BRANCH_CODE,
+				BRANCH_NAME,
+				BRANCH_STREET,
+				BRANCH_CITY,
+				BRANCH_STATE,
+				IF (BRANCH_ZIP IS NULL, 999999, BRANCH_ZIP) AS BRANCH_ZIP,
+				CONCAT("(",LEFT(BRANCH_PHONE,3),")",SUBSTRING(BRANCH_PHONE,4,3),"-",RIGHT(BRANCH_PHONE,4)) AS BRANCH_PHONE,
+				LAST_UPDATED
+				FROM
+				cdw_sapp.cdw_sapp_branch
+				WHERE $CONDITIONS</arg>
+			<arg>--target-dir</arg>
+			<arg>/Credit_Card_System/CDW_SAPP_D_BRANCH/</arg>
+			<arg>--fields-terminated-by</arg>
+			<arg>\t</arg>
+			<archive>/user/oozie/share/lib/lib_20161025075203/sqoop/java-json.jar#java-json.jar</archive>
+		</sqoop>
+		<ok to="Branch_Hive"/>
+		<error to = "Kill_Sqoop"/>
+	</action>		
+
+	<action name="Branch_Hive">
+		<hive xmlns = "uri:oozie:hive-action:0.4">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<script>${nameNode}/case_study/hive/branchtable.sql</script>
+			<param>INSERTION_MODE=OVERWRITE</param>
+		</hive>
+		<ok to = "Customer_Data_Import" />
+		<error to = "Kill_Hive" />
+	</action>
+
+
+	<!-- Customer Table-->
+
+
+
+	<action name="Customer_Data_Import">
+		<sqoop xmlns="uri:oozie:sqoop-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+				<delete path="${nameNode}/Credit_Card_System/CDW_SAPP_D_CUSTOMER"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<arg>import</arg>
+			<arg>--connect</arg>
+			<arg>jdbc:mysql://localhost/cdw_sapp</arg>
+			<arg>--driver</arg>
+			<arg>com.mysql.jdbc.Driver</arg>
+			<arg>-m</arg>
+			<arg>1</arg>
+			<arg>--query</arg>
+			<arg>
+				SELECT
+				SSN AS CUST_SSN,
+				CONCAT(UPPER(SUBSTRING(FIRST_NAME,1,1)),LOWER(SUBSTRING(FIRST_NAME,2))) AS CUST_F_NAME,
+				LOWER(MIDDLE_NAME) AS CUST_M_NAME,
+				CONCAT(UPPER(SUBSTRING(LAST_NAME,1,1)),LOWER(SUBSTRING(LAST_NAME,2)))  AS CUST_L_NAME,
+				CREDIT_CARD_NO AS CUST_CC_NO,
+				CONCAT(STREET_NAME,", ",APT_NO) AS CUST_STREET,
+				CUST_CITY,
+				CUST_STATE,
+				CUST_COUNTRY,
+				CUST_ZIP,
+				CONCAT (  LEFT(CUST_PHONE,3) , "-" , RIGHT(CUST_PHONE,4) ) AS CUST_PHONE,
+				CUST_EMAIL,
+				LAST_UPDATED
+				FROM
+				cdw_sapp.cdw_sapp_customer
+				WHERE $CONDITIONS
+			</arg>
+			<arg>--target-dir</arg>
+			<arg>/Credit_Card_System/CDW_SAPP_D_CUSTOMER/</arg>
+			<arg>--fields-terminated-by</arg>
+			<arg>\t</arg>
+			<archive>/user/oozie/share/lib/lib_20161025075203/sqoop/java-json.jar#java-json.jar</archive>
+		</sqoop>
+		<ok to="Customer_Hive"/>
+		<error to = "Kill_Sqoop"/>
+	</action>		
+
+	<action name="Customer_Hive">
+		<hive xmlns = "uri:oozie:hive-action:0.4">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<script>${nameNode}/case_study/hive/customertable.sql</script>
+			<param>INSERTION_MODE=OVERWRITE</param>
+		</hive>
+		<ok to = "Time_Data_Import" />
+		<error to = "Kill_Hive" />
+	</action>
+
+
+	<!--Time Table -->
+
+
+
+	<action name="Time_Data_Import">
+		<sqoop xmlns="uri:oozie:sqoop-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+				<delete path="${nameNode}/Credit_Card_System/CDW_SAPP_D_TIME"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<arg>import</arg>
+			<arg>--connect</arg>
+			<arg>jdbc:mysql://localhost/cdw_sapp</arg>
+			<arg>--driver</arg> 
+			<arg>com.mysql.jdbc.Driver</arg>
+			<arg>-m</arg>
+			<arg>1</arg>
+			<arg>--query</arg>
+			<arg>SELECT distinct CAST(CONCAT(YEAR, LPAD(MONTH, 2,"0"), LPAD(DAY, 2,"0")) AS UNSIGNED) as TIMEID , DAY, MONTH, 
+				CASE 
+				WHEN (MONTH between 1 and 3) THEN "FIRST"
+				WHEN (MONTH between 4 and 6) THEN "SECOND"
+				WHEN (MONTH between 7 and 9) THEN "THIRD"
+				WHEN (MONTH between 9 and 12) THEN "FOURTH"
+				END AS "QUARTER", 
+				YEAR FROM cdw_sapp.cdw_sapp_creditcard WHERE $CONDITIONS
+				ORDER BY 1</arg>
+			<arg>--target-dir</arg>
+			<arg>/Credit_Card_System/CDW_SAPP_D_TIME/</arg>
+			<arg>--fields-terminated-by</arg>
+			<arg>\t</arg>
+			<archive>/user/oozie/share/lib/lib_20161025075203/sqoop/java-json.jar#java-json.jar</archive>
+		</sqoop>
+		<ok to="Time_Hive"/>
+		<error to = "Kill_Sqoop"/>
+	</action>		
+
+	<action name="Time_Hive">
+		<hive xmlns = "uri:oozie:hive-action:0.4">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<script>${nameNode}/case_study/hive/timetable.sql</script>
+			<param>INSERTION_MODE=OVERWRITE</param>
+		</hive>
+		<ok to = "Delete_Temporary_Files" />
+		<error to = "Kill_Hive" />
+	</action>
+
+
+	<!-- Clean Up -->
+
+	<action name="Delete_Temporary_Files">
+		<shell xmlns="uri:oozie:shell-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<exec>hdfs</exec>
+			<argument>dfs</argument>
+			<argument>-rm</argument>
+			<argument>-f</argument>
+			<argument>-r</argument>
+			<argument>/Credit_Card_System/CDW_SAPP_F_CREDIT_CARD</argument>
+			<argument>/Credit_Card_System/CDW_SAPP_D_BRANCH</argument>
+			<argument>/Credit_Card_System/CDW_SAPP_D_CUSTOMER</argument>
+			<argument>/Credit_Card_System/CDW_SAPP_D_TIME</argument>
+		</shell>
+		<ok to="Drop_Temporary_Tables"/>
+		<error to="Kill_Clean_Up"/>
+	</action>
+
+	<action name="Drop_Temporary_Tables">
+		<shell xmlns="uri:oozie:shell-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<exec>hive</exec>
+			<argument>-e</argument>
+			<argument>
+				DROP TABLE cdw_sapp.temporary_table_cdw_sapp_f_credit_card; 
+				DROP TABLE cdw_sapp.temporary_table_cdw_sapp_d_branch;
+				DROP TABLE cdw_sapp.temporary_table_cdw_sapp_d_customer;
+				DROP TABLE cdw_sapp.temporary_table_cdw_sapp_d_time;
+			</argument>
+		</shell>
+		<ok to="Finish"/>
+		<error to="Kill_Clean_Up"/>
+	</action>
+
+	<!--- Finish-->
+
+	<kill name = "Kill_Sqoop">
+		<message>Something went wrong while performing a sqoop action</message>
+	</kill>
+
+	<kill name = "Kill_Hive">
+		<message>Something went wrong while performing a hive action</message>
+	</kill>
+
+	<kill name = "Kill_Clean_Up">
+		<message>Something went wrong while removing temporary data</message>
+	</kill>
+
+	<end name = "Finish" />
+
+</workflow-app>

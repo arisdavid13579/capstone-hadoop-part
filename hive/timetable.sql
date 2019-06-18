@@ -1,0 +1,33 @@
+
+-- Temp table used to load the time table into warehouse
+DROP TABLE IF EXISTS CDW_SAPP.TEMPORARY_TABLE_CDW_SAPP_D_TIME;
+CREATE EXTERNAL TABLE CDW_SAPP.TEMPORARY_TABLE_CDW_SAPP_D_TIME(
+TIMEID VARCHAR(8),
+`DAY` INT,
+`MONTH` INT,
+QUARTER VARCHAR(8),
+`YEAR` INT
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n'
+LOCATION "/Credit_Card_System/CDW_SAPP_D_TIME/";
+
+-- Permanent time table.  This table is only created during the script's first run.
+CREATE TABLE IF NOT EXISTS CDW_SAPP.CDW_SAPP_D_TIME (
+TIMEID VARCHAR(8),
+`DAY` INT,
+`MONTH` INT,
+`YEAR` INT
+
+)
+PARTITIONED BY (QUARTER VARCHAR(8))
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+SET hive.exec.dynamic.partition = true;
+SET hive.exec.dynamic.partition.mode = nonstrict;
+
+INSERT ${INSERTION_MODE} TABLE CDW_SAPP.CDW_SAPP_D_TIME  PARTITION (QUARTER)
+-- The INSERTION_MODE parameter is changed into 'OVERWRITE'  for the non-optimal module or 'INTO' for optimization. 
+
+SELECT  TIMEID , `DAY`, `MONTH`, `YEAR`, QUARTER 
+FROM CDW_SAPP.TEMPORARY_TABLE_CDW_SAPP_D_TIME;

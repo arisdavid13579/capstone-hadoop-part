@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflow-app xmlns = "uri:oozie:workflow:0.2" name = "Optimized_Workflow">
+	<start to = "Credit_Card_Data_Import"/>
+
+	<!--Credit Card Table-->
+
+
+	<action name="Credit_Card_Data_Import">
+		<sqoop xmlns="uri:oozie:sqoop-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+				<delete path="${nameNode}/Credit_Card_System/CDW_SAPP_F_CREDIT_CARD"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<arg>job</arg>
+			<arg>--meta-connect</arg>
+			<arg>jdbc:hsqldb:hsql://localhost:16000/sqoop</arg>
+			<arg>--exec</arg>
+			<arg>updatecreditcardtable</arg>
+			<archive>/user/oozie/share/lib/lib_20161025075203/sqoop/java-json.jar#java-json.jar</archive>
+		</sqoop>
+		<ok to="Credit_Card_Hive"/>
+		<error to = "Kill_Sqoop"/>
+	</action>
+
+	<action name="Credit_Card_Hive">
+		<hive xmlns = "uri:oozie:hive-action:0.4">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<script>${nameNode}/case_study/hive/creditcardtable.sql</script>
+			<param>INSERTION_MODE=INTO</param>
+		</hive>
+		<ok to = "Branch_Data_Import" />
+		<error to = "Kill_Hive" />
+	</action>	
+
+
+	<!-- Branch Table -->
+
+
+	<action name="Branch_Data_Import">
+		<sqoop xmlns="uri:oozie:sqoop-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+				<delete path="${nameNode}/Credit_Card_System/CDW_SAPP_D_BRANCH"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<arg>job</arg>
+			<arg>--meta-connect</arg>
+			<arg>jdbc:hsqldb:hsql://localhost:16000/sqoop</arg>
+			<arg>--exec</arg>
+			<arg>updatebranchtable</arg>
+			<archive>/user/oozie/share/lib/lib_20161025075203/sqoop/java-json.jar#java-json.jar</archive>
+		</sqoop>
+		<ok to="Branch_Hive"/>
+		<error to = "Kill_Sqoop"/>
+	</action>		
+
+	<action name="Branch_Hive">
+		<hive xmlns = "uri:oozie:hive-action:0.4">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<script>${nameNode}/case_study/hive/branchtable.sql</script>
+			<param>INSERTION_MODE=INTO</param>
+		</hive>
+		<ok to = "Customer_Data_Import" />
+		<error to = "Kill_Hive" />
+	</action>
+
+
+	<!-- Customer Table-->
+
+
+	<action name="Customer_Data_Import">
+		<sqoop xmlns="uri:oozie:sqoop-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+				<delete path="${nameNode}/Credit_Card_System/CDW_SAPP_D_CUSTOMER"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<arg>job</arg>
+			<arg>--meta-connect</arg>
+			<arg>jdbc:hsqldb:hsql://localhost:16000/sqoop</arg>
+			<arg>--exec</arg>
+			<arg>updatecustomertable</arg>
+			<archive>/user/oozie/share/lib/lib_20161025075203/sqoop/java-json.jar#java-json.jar</archive>
+		</sqoop>
+		<ok to="Customer_Hive"/>
+		<error to = "Kill_Sqoop"/>
+	</action>		
+
+	<action name="Customer_Hive">
+		<hive xmlns = "uri:oozie:hive-action:0.4">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<script>${nameNode}/case_study/hive/customertable.sql</script>
+			<param>INSERTION_MODE=INTO</param>
+		</hive>
+		<ok to = "Time_Data_Import" />
+		<error to = "Kill_Hive" />
+	</action>
+
+
+	<!--Time Table -->
+
+	<action name="Time_Data_Import">
+		<sqoop xmlns="uri:oozie:sqoop-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+				<delete path="${nameNode}/Credit_Card_System/CDW_SAPP_D_TIME"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<arg>job</arg>
+			<arg>--meta-connect</arg>
+			<arg>jdbc:hsqldb:hsql://localhost:16000/sqoop</arg>
+			<arg>--exec</arg>
+			<arg>updatetimetable</arg>
+			<archive>/user/oozie/share/lib/lib_20161025075203/sqoop/java-json.jar#java-json.jar</archive>
+		</sqoop>
+		<ok to="Time_Hive"/>
+		<error to = "Kill_Sqoop"/>
+	</action>		
+
+	<action name="Time_Hive">
+		<hive xmlns = "uri:oozie:hive-action:0.4">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<script>${nameNode}/case_study/hive/timetable.sql</script>
+			<param>INSERTION_MODE=INTO</param>
+		</hive>
+		<ok to = "Delete_Temporary_Files" />
+		<error to = "Kill_Hive" />
+	</action>
+
+
+	<!-- Clean Up -->
+
+	<action name="Delete_Temporary_Files">
+		<shell xmlns="uri:oozie:shell-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<exec>hdfs</exec>
+			<argument>dfs</argument>
+			<argument>-rm</argument>
+			<argument>-f</argument>
+			<argument>-r</argument>
+			<argument>/Credit_Card_System/CDW_SAPP_F_CREDIT_CARD</argument>
+			<argument>/Credit_Card_System/CDW_SAPP_D_BRANCH</argument>
+			<argument>/Credit_Card_System/CDW_SAPP_D_CUSTOMER</argument>
+			<argument>/Credit_Card_System/CDW_SAPP_D_TIME</argument>
+		</shell>
+		<ok to="Drop_Temporary_Tables"/>
+		<error to="Kill_Clean_Up"/>
+	</action>
+
+	<action name="Drop_Temporary_Tables">
+		<shell xmlns="uri:oozie:shell-action:0.2">
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+			</configuration>
+			<exec>hive</exec>
+			<argument>-e</argument>
+			<argument>
+				DROP TABLE cdw_sapp.temporary_table_cdw_sapp_f_credit_card; 
+				DROP TABLE cdw_sapp.temporary_table_cdw_sapp_d_branch;
+				DROP TABLE cdw_sapp.temporary_table_cdw_sapp_d_customer;
+				DROP TABLE cdw_sapp.temporary_table_cdw_sapp_d_time;
+			</argument>
+		</shell>
+		<ok to="Finish"/>
+		<error to="Kill_Clean_Up"/>
+	</action>
+
+	<!--- Finish-->
+
+	<kill name = "Kill_Sqoop">
+		<message>Something went wrong while performing a sqoop action</message>
+	</kill>
+
+	<kill name = "Kill_Hive">
+		<message>Something went wrong while performing a hive action</message>
+	</kill>
+
+	<kill name = "Kill_Clean_Up">
+		<message>Something went wrong while removing temporary data</message>
+	</kill>
+
+	<end name = "Finish" />
+
+</workflow-app>
