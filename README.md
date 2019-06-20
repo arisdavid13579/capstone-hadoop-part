@@ -1,8 +1,8 @@
-#Data Warehousing Capstone Project
+# Data Warehousing Capstone Project
 
 This repository is a copy of the Hadoop part of the final project assigned to me during as part of my Data Engineering training bootcamp. 
 
-###ETL from MySQL to warehouse.
+### ETL from MySQL to warehouse.
 
 The bulk of the project was to transfer data from a relational database (MySQL) into a data warehouse (in Hadoop).
 Sqoop was used to Extract the data from the database and also to Transform into a format better suited for a data warehouse. once Sqoop loaded the data into HDFS, hive was used to transfer it to the data warehouse.
