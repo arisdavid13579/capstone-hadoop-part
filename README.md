@@ -18,3 +18,5 @@ The project runs on one of HortonWorks distributions of Hadoop. It is an image t
 The HortonWorks distribution is a large file so it is not included with the repository. Later I will include a link to the VM image and maybe instructions on how to create your own.
 
 Assuming that a proper installation of Hadoop is running on a VM, the project can be run by first copying the contents of the repository into the Linux VM (not into HDFS) and first running the create_sqoop_jobs_optimal.sh script inside the run folder and then running the run_optimized_oozie.sh script inside the same folder. For this to work, the Hadoop image must also have a Sqoop metastore installed, so make sure one is installed. 
+
+##### More information can be found inside the operation_manual.pdf file 
